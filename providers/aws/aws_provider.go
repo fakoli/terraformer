@@ -93,6 +93,10 @@ func (p AWSProvider) GetResourceConnections() map[string]map[string][]string {
 			"subnet": []string{"broker_node_group_info.client_subnets", "id"},
 			"sg":     []string{"broker_node_group_info.security_groups", "id"},
 		},
+		"nat": {
+			"subnet": []string{"subnet_id", "id"},
+			"sg":     []string{"security_groups", "id"},
+		},
 		"nacl": {
 			"subnet": []string{"subnet_ids", "id"},
 			"vpc":    []string{"vpc_id", "id"},
@@ -109,9 +113,12 @@ func (p AWSProvider) GetResourceConnections() map[string]map[string][]string {
 			"sg":     []string{"vpc_security_group_ids", "id"},
 		},
 		"route_table": {
-			"route_table": []string{"route_table_id", "id"},
-			"subnet":      []string{"subnet_id", "id"},
-			"vpc":         []string{"vpc_id", "id"},
+			"nat":            []string{"route.nat_gateway_id", "id"},
+			"vpc_peering":    []string{"route.vpc_peering_connection_id", "id"},
+			"transit_gatway": []string{"route.transit_gateway_id", "id"},
+			"route_table":    []string{"route_table_id", "id"},
+			"subnet":         []string{"subnet_id", "id"},
+			"vpc":            []string{"vpc_id", "id"},
 		},
 		"sns": {
 			"sns": []string{"topic_arn", "id"},
@@ -131,6 +138,17 @@ func (p AWSProvider) GetResourceConnections() map[string]map[string][]string {
 			"transit_gateway": []string{"transit_gateway_id", "id"},
 			"subnet":          []string{"subnet_ids", "id"},
 			"vpn_connection":  []string{"vpn_connection_id", "id"},
+		},
+		"vpc_endpoint": {
+			"vpc":    []string{"vpc_id", "id"},
+			"subnet": []string{"subnet_ids", "id"},
+			"sg":     []string{"security_group_ids", "id"},
+		},
+		"vpc_peering": {
+			"vpc": []string{
+				"peer_vpc_id", "id",
+				"vpc_id", "id",
+			},
 		},
 		"vpn_gateway": {"vpc": []string{"vpc_id", "id"}},
 		"vpn_connection": {
@@ -304,6 +322,7 @@ func (p *AWSProvider) GetSupportedService() map[string]terraformutils.ServiceGen
 		"waf":               &AwsFacade{service: &WafGenerator{}},
 		"waf_regional":      &AwsFacade{service: &WafRegionalGenerator{}},
 		"vpc":               &AwsFacade{service: &VpcGenerator{}},
+		"vpc_endpoint":      &AwsFacade{service: &VpcEndpointGenerator{}},
 		"vpc_peering":       &AwsFacade{service: &VpcPeeringConnectionGenerator{}},
 		"vpn_connection":    &AwsFacade{service: &VpnConnectionGenerator{}},
 		"vpn_gateway":       &AwsFacade{service: &VpnGatewayGenerator{}},
