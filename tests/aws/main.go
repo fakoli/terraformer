@@ -30,9 +30,8 @@ func main() {
 	tCommand.SetArgs([]string{
 		"import",
 		"aws",
-		"--regions=ap-southeast-1",
-		"--resources=ssm",
-		"--profile=personal",
+		"--regions=us-east-1",
+		"--resources=vpc_endpoint",
 		"--verbose",
 		"--compact",
 		"--path-pattern=" + pathPattern,

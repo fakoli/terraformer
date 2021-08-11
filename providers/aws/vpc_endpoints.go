@@ -18,7 +18,6 @@ import (
 	"context"
 
 	"github.com/GoogleCloudPlatform/terraformer/terraformutils"
-
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
 )
 
@@ -26,21 +25,6 @@ var endpointAllowEmptyValues = []string{"tags."}
 
 type VpcEndpointGenerator struct {
 	AWSService
-}
-
-func (g *VpcEndpointGenerator) createResources(endpoints *ec2.DescribeVpcEndpointConnectionsOutput) []terraformutils.Resource {
-	var resources []terraformutils.Resource
-	for _, endpoint := range endpoints.VpcEndpointConnections {
-		resources = append(resources, terraformutils.NewSimpleResource(
-			StringValue(endpoint.VpcEndpointId),
-			StringValue(endpoint.VpcEndpointId),
-			"aws_vpc_endpoint",
-			"aws",
-			endpointAllowEmptyValues,
-		))
-	}
-
-	return resources
 }
 
 // Generate TerraformResources from AWS API,
@@ -51,13 +35,28 @@ func (g *VpcEndpointGenerator) InitResources() error {
 		return e
 	}
 	svc := ec2.NewFromConfig(config)
-	p := ec2.NewDescribeVpcEndpointConnectionsPaginator(svc, &ec2.DescribeVpcEndpointConnectionsInput{})
+	if err := g.loadEndpoints(svc); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (g *VpcEndpointGenerator) loadEndpoints(svc *ec2.Client) error {
+	p := ec2.NewDescribeVpcEndpointsPaginator(svc, &ec2.DescribeVpcEndpointsInput{})
 	for p.HasMorePages() {
 		page, err := p.NextPage(context.TODO())
 		if err != nil {
 			return err
 		}
-		g.Resources = append(g.Resources, g.createResources(page)...)
+		for _, vpcEndpoint := range page.VpcEndpoints {
+			g.Resources = append(g.Resources, terraformutils.NewSimpleResource(
+				StringValue(vpcEndpoint.VpcEndpointId),
+				StringValue(vpcEndpoint.VpcEndpointId),
+				"aws_vpc_endpoint",
+				"aws",
+				endpointAllowEmptyValues,
+			))
+		}
 	}
 	return nil
 }
