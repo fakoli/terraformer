@@ -140,9 +140,10 @@ func (p AWSProvider) GetResourceConnections() map[string]map[string][]string {
 			"vpn_connection":  []string{"vpn_connection_id", "id"},
 		},
 		"vpc_endpoint": {
-			"vpc":    []string{"vpc_id", "id"},
-			"subnet": []string{"subnet_ids", "id"},
-			"sg":     []string{"security_group_ids", "id"},
+			"route_tables": []string{"route_table_ids", "id"},
+			"vpc":          []string{"vpc_id", "id"},
+			"subnet":       []string{"subnet_ids", "id"},
+			"sg":           []string{"security_group_ids", "id"},
 		},
 		"vpc_peering": {
 			"vpc": []string{
