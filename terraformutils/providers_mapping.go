@@ -4,6 +4,8 @@ import (
 	"log"
 	"math/rand"
 	"reflect"
+	"strconv"
+	"strings"
 	"time"
 
 	"github.com/GoogleCloudPlatform/terraformer/terraformutils/providerwrapper"
@@ -84,6 +86,7 @@ func (p *ProvidersMapping) ShuffleResources() []*Resource {
 
 func (p *ProvidersMapping) ProcessResources(isCleanup bool) {
 	initialResources := p.resourceToProvider
+	resource_index := make(map[string]int)
 	if isCleanup && len(initialResources) > 0 {
 		p.Resources = map[*Resource]bool{}
 		p.resourceToProvider = map[*Resource]ProviderGenerator{}
@@ -91,7 +94,7 @@ func (p *ProvidersMapping) ProcessResources(isCleanup bool) {
 			resources := provider.GetService().GetResources()
 			log.Printf("Filtered number of resources for service %s: %d", p.providerToService[provider], len(provider.GetService().GetResources()))
 			for i := range resources {
-				resource := resources[i]
+				resource := p.ResolveResourceNames(resources[i], resource_index)
 				p.Resources[&resource] = true
 				p.resourceToProvider[&resource] = provider
 			}
@@ -101,12 +104,34 @@ func (p *ProvidersMapping) ProcessResources(isCleanup bool) {
 			resources := provider.GetService().GetResources()
 			log.Printf("Number of resources for service %s: %d", p.providerToService[provider], len(provider.GetService().GetResources()))
 			for i := range resources {
-				resource := resources[i]
+				resource := p.ResolveResourceNames(resources[i], resource_index)
 				p.Resources[&resource] = true
 				p.resourceToProvider[&resource] = provider
 			}
 		}
 	}
+}
+
+func (p *ProvidersMapping) ResolveResourceNames(resource Resource, resource_index map[string]int) Resource {
+	if name, ok := resource.InstanceState.Attributes["tags.Name"]; ok {
+		replacer := strings.NewReplacer(
+			".", "_",
+			"-", "_",
+			" ", "_",
+		)
+		sanitizedName := strings.ToLower(replacer.Replace(name))
+
+		if _, ok := resource_index[sanitizedName]; !ok {
+			resource_index[sanitizedName] = -1
+		}
+		resource_index[sanitizedName] += 1
+		tag_name := sanitizedName + "_" + strconv.Itoa(resource_index[sanitizedName])
+
+		log.Printf("Resolving resource name: %s -> %s", resource.ResourceName, tag_name)
+		resource.ResourceName = tag_name
+		resource.InstanceInfo.Id = resource.InstanceInfo.Type + "." + tag_name
+	}
+	return resource
 }
 
 func (p *ProvidersMapping) MatchProvider(resource *Resource) ProviderGenerator {
