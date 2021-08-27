@@ -113,6 +113,7 @@ func (p *ProvidersMapping) ProcessResources(isCleanup bool) {
 }
 
 func (p *ProvidersMapping) ResolveResourceNames(resource Resource, resource_index map[string]int) Resource {
+	var tag_name string
 	if name, ok := resource.InstanceState.Attributes["tags.Name"]; ok {
 		replacer := strings.NewReplacer(
 			".", "_",
@@ -122,14 +123,17 @@ func (p *ProvidersMapping) ResolveResourceNames(resource Resource, resource_inde
 		sanitizedName := strings.ToLower(replacer.Replace(name))
 
 		if _, ok := resource_index[sanitizedName]; !ok {
-			resource_index[sanitizedName] = -1
+			resource_index[sanitizedName] = 0
+			tag_name = sanitizedName
+		} else {
+			resource_index[sanitizedName] += 1
+			tag_name = sanitizedName + "_" + strconv.Itoa(resource_index[sanitizedName])
 		}
-		resource_index[sanitizedName] += 1
-		tag_name := sanitizedName + "_" + strconv.Itoa(resource_index[sanitizedName])
 
 		log.Printf("Resolving resource name: %s -> %s", resource.ResourceName, tag_name)
 		resource.ResourceName = tag_name
 		resource.InstanceInfo.Id = resource.InstanceInfo.Type + "." + tag_name
+
 	}
 	return resource
 }

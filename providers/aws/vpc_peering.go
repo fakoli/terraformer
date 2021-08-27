@@ -28,21 +28,6 @@ type VpcPeeringConnectionGenerator struct {
 	AWSService
 }
 
-func (g *VpcPeeringConnectionGenerator) createResources(peerings *ec2.DescribeVpcPeeringConnectionsOutput) []terraformutils.Resource {
-	var resources []terraformutils.Resource
-	for _, peering := range peerings.VpcPeeringConnections {
-		resources = append(resources, terraformutils.NewSimpleResource(
-			StringValue(peering.VpcPeeringConnectionId),
-			StringValue(peering.VpcPeeringConnectionId),
-			"aws_vpc_peering_connection",
-			"aws",
-			peeringAllowEmptyValues,
-		))
-	}
-
-	return resources
-}
-
 // Generate TerraformResources from AWS API,
 // create terraform resource for each VPC Peering Connection
 func (g *VpcPeeringConnectionGenerator) InitResources() error {
@@ -57,7 +42,53 @@ func (g *VpcPeeringConnectionGenerator) InitResources() error {
 		if err != nil {
 			return err
 		}
-		g.Resources = append(g.Resources, g.createResources(page)...)
+		g.Resources = append(g.Resources, g.createVpcConnections(page)...)
 	}
+
 	return nil
+}
+
+func (g *VpcPeeringConnectionGenerator) createVpcConnections(peerings *ec2.DescribeVpcPeeringConnectionsOutput) []terraformutils.Resource {
+	var resources []terraformutils.Resource
+	for _, peering := range peerings.VpcPeeringConnections {
+		peeringID := StringValue(peering.VpcPeeringConnectionId)
+
+		if StringValue(peering.AccepterVpcInfo.Region) == StringValue(peering.RequesterVpcInfo.Region) {
+			resources = append(resources, terraformutils.NewResource(
+				peeringID,
+				peeringID,
+				"aws_vpc_peering_connection",
+				"aws",
+				map[string]string{
+					"peer_owner_id": StringValue(peering.AccepterVpcInfo.OwnerId),
+					"auto_accept":   "true",
+					"peer_vpc_id":   StringValue(peering.AccepterVpcInfo.VpcId),
+					"vpc_id":        StringValue(peering.RequesterVpcInfo.VpcId),
+				},
+				peeringAllowEmptyValues,
+				map[string]interface{}{},
+			))
+			continue
+		}
+
+		if StringValue(peering.RequesterVpcInfo.Region) == g.GetArgs()["region"] && StringValue(peering.AccepterVpcInfo.Region) != g.GetArgs()["region"] {
+
+			resources = append(resources, terraformutils.NewResource(
+				peeringID,
+				peeringID,
+				"aws_vpc_peering_connection",
+				"aws",
+				map[string]string{
+					"peer_owner_id": StringValue(peering.AccepterVpcInfo.OwnerId),
+					"auto_accept":   "false",
+					"peer_region":   StringValue(peering.AccepterVpcInfo.Region),
+					"peer_vpc_id":   StringValue(peering.AccepterVpcInfo.VpcId),
+					"vpc_id":        StringValue(peering.RequesterVpcInfo.VpcId),
+				},
+				peeringAllowEmptyValues,
+				map[string]interface{}{},
+			))
+		}
+	}
+	return resources
 }
